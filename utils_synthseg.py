@@ -1,13 +1,16 @@
-"""Utility functions for Synthseg training in MONAI
+"""Code for utility functions for Synthseg training in MONAI.
 """
 from datetime import datetime
-from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.colors import (
+    BoundaryNorm,
+    ListedColormap,
+)
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 from monai.inferers import sliding_window_inference
-from monai.networks.nets import SegResNet
+from monai.networks.nets import BasicUNet
 
 
 def extract_slice(dat, dim=2, mid_ix=None):
@@ -22,7 +25,6 @@ def extract_slice(dat, dim=2, mid_ix=None):
     if dim == 2: dat = dat[..., :, :, mid[2]]
     return dat
 
-
 def get_label_cmap(n_labels):
     """Get matplotlib colour map for a label map.
     """
@@ -36,31 +38,30 @@ def get_label_cmap(n_labels):
     
     return cmap, norm
 
-
 def get_model(out_channels):
     """Get SynthSeg DL model.
     """
-    model = SegResNet(
+    model = BasicUNet(
         spatial_dims=3,
-        blocks_down=[1, 2, 2, 4],
-        blocks_up=[1, 1, 1],
-        init_filters=32,
         in_channels=1,
         out_channels=out_channels,
-        dropout_prob=None,
+        features=(24, 48, 96, 192, 384, 24),
+        act=("LeakyReLU", {"negative_slope": 0.2, "inplace": True}),
+        upsample="deconv",
     )
+    model_size = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Model size: {model_size:,}")
     return model
-
 
 def get_synth_params(target_labels, train=True):
     """Get SynthSeg parameters for train or val.       
     """
     if train:
+        # Training
         synth_params = {   
             "target_labels": target_labels, 
             "elastic_steps": 8,    
             "rotation": 15,
-            #"rotation": 30,
             "shears": 0.012,
             "zooms": 0.15,
             "elastic": 0.075,
@@ -76,7 +77,7 @@ def get_synth_params(target_labels, train=True):
             "translations": 0.1,
         }        
     else:
-        # Ensure the same images are seen when running val
+        # Validation
         synth_params = {    
             "target_labels": target_labels, 
             "elastic_steps": 8,    
@@ -98,28 +99,26 @@ def get_synth_params(target_labels, train=True):
         }            
     return synth_params
 
-
 def get_timestamp():
     """Get a time stamp.
     """
     now = datetime.now()
     return now.strftime("%H:%M:%S %d/%m/%Y")
 
-
 def inference(inputs, model, patch_size=None):
     """Run pytorch inference, either full image of sliding window.
     """   
-    if patch_size is not None:
-        return sliding_window_inference(
-            inputs=inputs,
-            roi_size=patch_size,
-            sw_batch_size=1,
-            predictor=model,
-            overlap=0.5,
-        )
-    else:
-        return model(inputs)
-    
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        if patch_size is not None:
+            return sliding_window_inference(
+                inputs=inputs,
+                roi_size=patch_size,
+                sw_batch_size=1,
+                predictor=model,
+                overlap=0.5,
+            )
+        else:
+            return model(inputs)
     
 def plot_loss_and_metric(axs, loss_values, metric_values, validation_epoch):
     """Plots training loss and metric

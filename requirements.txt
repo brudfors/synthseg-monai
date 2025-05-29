@@ -1,0 +1,7 @@
+monai==1.4.0
+git+https://github.com/balbasty/cornucopia.git@8b326481e799bff827cb4e245633631c26db435e
+nvidia-ml-py3==7.352.0
+matplotlib
+tqdm
+dicom2nifti
+wget

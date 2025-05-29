@@ -1,9 +1,8 @@
-"""Custom transforms for Synthseg training in MONAI
+"""Code for custom transforms for Synthseg training in MONAI.
 """
 import cornucopia as cc
 import torch
 from random import randrange
-
 from monai.transforms import (
     MapTransform,
     RandomizableTransform,
@@ -12,29 +11,6 @@ from monai.transforms import (
 )
 from monai.data.meta_tensor import MetaTensor
 
-from utils_synthseg import (
-    extract_slice,
-)
-
-class RemoveEmptySlices(MapTransform):
-    """Transform to get slice from volume.
-    """
-    def __init__(self, key_label="label"):
-        self.key_label = key_label    
-
-    def __call__(self, data):
-        d = dict(data)
-
-        if self.key_label in d:
-            label = d[self.key_label]
-            meta = label.meta
-            sLabel = label.sum(dim=(0, 1, 2))
-            ix = (sLabel != 0).nonzero().flatten()
-            label = torch.index_select(label, 3, ix)            
-            d[self.key_label] = MetaTensor(label)
-            d[self.key_label].copy_meta_from(meta)
-
-        return d
     
 class LabelUnlabelledGMM(MapTransform):
     """Use a GMM to label unlabelled voxels.
@@ -99,52 +75,7 @@ class LabelUnlabelledGMM(MapTransform):
         d[self.key_label].copy_meta_from(meta)
 
         return d
-
-
-class MapLabelsSAROS(MapTransform):
-    """Transform to map Neurite datas' label indices to contigious values starting at one.
-    """
-    @staticmethod
-    def label_mapping():
-        return {
-            1:1,
-            2:2,
-            3:3,
-            4:4,
-            5:5,
-            6:6,
-            7:7,
-            9:8,
-            10:9,
-            11:10,
-            12:11,
-            13:12,
-        }
-
-    def __init__(self, key_label="label"):
-        self.key_label = key_label    
-        self.lm = MapLabelsNeurite.label_mapping()
-        self.allow_missing_keys = False
-
-    def __call__(self, data):
-        d = dict(data)
-
-        label = d[self.key_label]
-        meta = label.meta
-        label = label.as_tensor()
-        
-        # Make contiguous
-        label_contiguous = torch.zeros_like(label)
-        for val in self.lm:
-            label_contiguous[label == val] = \
-                self.lm[val]
-        
-        d[self.key_label] = MetaTensor(label_contiguous)
-        d[self.key_label].copy_meta_from(meta)
-
-        return d
-    
-
+   
 class MapLabelsSynthSeg(MapTransform):
     """Transform to map SynthSeg datas' label indices to contigious values starting at one.
     """
@@ -216,54 +147,16 @@ class MapLabelsSynthSeg(MapTransform):
 
         return d
 
-
-class MapLabelsNeurite(MapTransform):
-    """Transform to map Neurite datas' label indices to contigious values starting at one.
+def ResizeTransform(keys, spatial_size, method):
+    """ Returns a resize transform.
     """
-    @staticmethod
-    def label_mapping():
-        l0 = list(range(1, 18)) + list(range(20, 34))
-        l1 = list(range(1,32))    
-        mapping = {}
-        for i0, i1, in zip(l0, l1):
-            mapping[i0] = i1
-
-        return mapping
-
-    def __init__(self, key_label="label"):
-        self.key_label = key_label    
-        self.lm = MapLabelsNeurite.label_mapping()
-        self.allow_missing_keys = False
-
-    def __call__(self, data):
-        d = dict(data)
-
-        label = d[self.key_label]
-        meta = label.meta
-        label = label.as_tensor()
-        
-        # Make contiguous
-        label_contiguous = torch.zeros_like(label)
-        for val in self.lm:
-            label_contiguous[label == val] = \
-                self.lm[val]
-        
-        d[self.key_label] = MetaTensor(label_contiguous)
-        d[self.key_label].copy_meta_from(meta)
-
-        return d
-
-
-def Resize(spatial_size, testing):
-    """Returns a MONAI resise transform. If testing, returns Resized,
-    else returns ResizeWithPadOrCropd.
-    """
-    if testing:
-        return Resized(keys=["label"], spatial_size=spatial_size, mode="nearest", lazy=True,)
+    if method == "pad_crop":
+        return ResizeWithPadOrCropd(keys=keys, spatial_size=spatial_size)
+    elif method == "spatial":
+        return Resized(keys=keys, spatial_size=spatial_size, mode="nearest")
     else:
-        return ResizeWithPadOrCropd(keys=["label"], spatial_size=spatial_size, lazy=True,)
-    
-    
+        raise ValueError(f"Undefined resize transform {method}")
+
 class SynthSegd(MapTransform, RandomizableTransform):
     """Transform to SynthSeg transform a label map to an intensity image.
     """
@@ -301,42 +194,3 @@ class SynthSegd(MapTransform, RandomizableTransform):
 
         return d
 
-
-class SliceFromVolume(MapTransform):
-    """Transform to get slice from volume.
-    """
-    def __init__(self, do=False, key_image="image", key_label="label"):
-        self.key_label = key_label    
-        self.key_image = key_image
-        self.do = do
-
-    def __call__(self, data):
-        d = dict(data)
-        if not self.do: return d
-
-        if self.key_image in d:
-            image = d[self.key_image]
-            meta = image.meta
-            image = extract_slice(image)
-
-            d[self.key_image] = MetaTensor(image)
-            d[self.key_image].copy_meta_from(meta)
-
-        if self.key_label in d:
-            label = d[self.key_label]
-            meta = label.meta         
-            n_slices = label.shape[-1]
-            
-            while True:
-                ix_slice = [0, 0, randrange(n_slices)]
-                label_slice = extract_slice(label, mid_ix=ix_slice)                
-#                 u = label_slice.unique()
-#                 print(u)
-#                 print(label_slice.sum())
-                if label_slice.sum() > 0:
-                    break
-           
-            d[self.key_label] = MetaTensor(label_slice)
-            d[self.key_label].copy_meta_from(meta)
-
-        return d
