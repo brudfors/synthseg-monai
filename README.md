@@ -31,7 +31,7 @@ To test the above trained model, run either `validate_synthseg.ipynb` (uses the 
 
 ## Model Training
 
-To train a new model run the scipt:
+To train a new model, download the training data from [here](https://github.com/BBillot/SynthSeg/tree/master/data/training_label_maps) and run the script:
 ```sh
 python train_synthseg.py
 ```
