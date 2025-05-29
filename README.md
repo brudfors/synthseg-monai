@@ -23,7 +23,7 @@ pip install -r requirements.txt
 
 A model trained with the `train_synthseg.py` script can be downloaded from [here](https://www.dropbox.com/scl/fi/q4my4tnyk6ftnd132tmb6/model_best.pth?rlkey=aowqsrl9cw9cccsntylm12n3s&st=yv04stz3&dl=1). Training was done on an NVIDIA A100 GPU, it took about 8 days and required around 36 GB VRAM. 
 
-If you want to use the model with `validate_synthseg.ipynb` or `test_synthseg.ipynb` notebooks, copy it to a `./results` folder.
+If you want to use the model with either the `validate_synthseg.ipynb` or the `test_synthseg.ipynb` notebook, copy the model to a `./results` folder.
 
 ## Model Testing
 
@@ -31,7 +31,7 @@ To test the above trained model, run either `validate_synthseg.ipynb` (uses the 
 
 ## Model Training
 
-Run training with:
+To train a new model run the scipt:
 ```sh
 python train_synthseg.py
 ```
@@ -49,5 +49,8 @@ If you have a system with multiple GPUs and/or nodes (e.g., 8 GPUs) you can spee
 ```sh
 torchrun --nproc_per_node=8 --nnodes=1 --node_rank=0 train_synthseg.py
 ```
-The final training results are visualized in the below training snapshot where the top row shows a random training sample from the final epoch, the second row shows the prediction on a validation image, the third row shows the best validation prediction over all epochs, and the fourth row shows the training loss and the validation metric (Dice).
-<img style="float: right;" src="https://github.com/brudfors/synthseg-monai/blob/master/assets/snapshot.png" width="100%" height="100%"> 
+Training results for the model in the *Download Trained Model* section are visualized in the below "snapshot" where the top row shows a random training sample from the final epoch, the second row shows the prediction on a validation image from the final epoch, the third row shows the best validation prediction over all epochs, and the fourth row shows the training loss and the validation metric (Dice).
+
+<p align="center">
+  <img style="float: right;" src="https://github.com/brudfors/synthseg-monai/blob/main/assets/snapshot.png" width="80%" height="80%">
+</p>
