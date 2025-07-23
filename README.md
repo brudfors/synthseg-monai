@@ -1,5 +1,9 @@
 # SynthSeg in MONAI
 
+<p align="center">
+  <img style="float: right;" src="https://github.com/brudfors/synthseg-monai/blob/main/assets/synthseg-approach.png" width="100%" height="100%">
+</p>
+
 This code implements the [SynthSeg](https://github.com/BBillot/SynthSeg) approach for 3D medical image segmentation using the [MONAI](https://github.com/Project-MONAI/MONAI) and [Cornucopia](https://github.com/balbasty/cornucopia) packages. MONAI is used for the deep learning bits and Cornucopia for GPU-based synthesizing. 
 
 In this repo, SynthSeg is trained for 3D brain segmentation, but the code can easily be adopted for other organs/structures. The training labels were taken from the official [SynthSeg repository](https://github.com/BBillot/SynthSeg/tree/master/data/training_label_maps) and include 20 brain label maps (i.e., segmentations).
